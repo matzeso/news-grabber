@@ -4,7 +4,7 @@ import { CliOptions, OutputFormat } from '../types/CliOptions';
 export async function promptUserForOptions(): Promise<CliOptions> {
   const answers = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       name: 'source',
       message: 'Select a news source:',
       choices: ['Tagesschau'],
@@ -25,7 +25,7 @@ export async function promptUserForOptions(): Promise<CliOptions> {
       }
     },
     {
-      type: 'list',
+      type: 'select',
       name: 'format',
       message: 'Select output format:',
       choices: [
