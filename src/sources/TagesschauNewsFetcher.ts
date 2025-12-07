@@ -11,11 +11,13 @@ import { Logger } from '../utils/logger';
 export class TagesschauNewsFetcher extends NewsFetcher {
   private logger: Logger;
   private concurrency: number;
+  private excludedLabels: string[];
 
-  constructor(concurrency: number = 10) {
+  constructor(concurrency: number = 10, excludedLabels: string[] = ['faq', 'interview']) {
     super();
     this.logger = new Logger();
     this.concurrency = concurrency;
+    this.excludedLabels = excludedLabels.map(label => label.toLowerCase());
   }
 
   async *fetchArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
@@ -72,11 +74,21 @@ export class TagesschauNewsFetcher extends NewsFetcher {
     const elements = $('div.copytext-element-wrapper__vertical-only').toArray();
     const articleLinks: string[] = [];
 
-    // Collect all article links
+    // Collect all article links, filtering by label
     for (const element of elements) {
       const firstLink = $(element).find('a').first();
       const href = firstLink.attr('href');
+
       if (href) {
+        // Check for excluded labels
+        const labelElement = $(firstLink).find('.label strong');
+        const label = labelElement.text().toLowerCase().trim();
+
+        // Skip if label is in excluded list
+        if (label && this.excludedLabels.includes(label)) {
+          continue;
+        }
+
         // Check if href is already a full URL
         const fullUrl = href.startsWith('http') ? href : `https://tagesschau.de${href}`;
         articleLinks.push(fullUrl);
