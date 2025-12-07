@@ -5,6 +5,7 @@ export class Statistics {
   totalFetched: number = 0;
   totalFiltered: number = 0;
   totalFailed: number = 0;
+  totalSkipped: number = 0;
 
   incrementFound(count: number): void {
     this.totalFound += count;
@@ -22,12 +23,17 @@ export class Statistics {
     this.totalFailed++;
   }
 
+  incrementSkipped(): void {
+    this.totalSkipped++;
+  }
+
   getSummary(hasFilters: boolean): string {
     const lines = [
       '',
       chalk.bold('Statistics:'),
       `  Articles found: ${this.totalFound}`,
       `  Successfully fetched: ${this.totalFetched}`,
+      `  Skipped (not NewsArticle): ${this.totalSkipped}`,
     ];
 
     if (hasFilters) {

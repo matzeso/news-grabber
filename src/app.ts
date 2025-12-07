@@ -72,6 +72,10 @@ export async function run(options: CliOptions): Promise<void> {
               stats.incrementFailed();
               progress.articleFailed(event.url);
               break;
+
+            case 'article_skipped':
+              stats.incrementSkipped();
+              break;
           }
         }
       } catch (error) {

@@ -136,6 +136,8 @@ export class TagesschauNewsFetcher extends NewsFetcher {
           const article = await retryWithDelay(() => this.fetchArticleDetails(url));
           if (article) {
             enqueueEvent({ type: 'article_fetched', article });
+          } else {
+            enqueueEvent({ type: 'article_skipped', url, reason: 'Not a NewsArticle or no structured data found' });
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);

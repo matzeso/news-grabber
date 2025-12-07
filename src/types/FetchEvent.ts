@@ -6,4 +6,5 @@ export type FetchEvent =
   | { type: 'archive_page_loaded'; articleCount: number }
   | { type: 'article_fetching'; current: number; total: number; url: string }
   | { type: 'article_fetched'; article: Article }
-  | { type: 'article_failed'; url: string; error: string };
+  | { type: 'article_failed'; url: string; error: string }
+  | { type: 'article_skipped'; url: string; reason: string };
