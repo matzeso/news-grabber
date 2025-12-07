@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { NewsFetcher } from './NewsFetcher';
 import { Article } from '../types/Article';
+import { FetchEvent } from '../types/FetchEvent';
 import { TagesschauArticleSchema } from '../types/TagesschauArticleSchema';
 import { retryWithDelay } from '../utils/retry';
 import { generateDaysForMonth, formatDateForUrl } from '../utils/dateUtils';
@@ -15,43 +16,43 @@ export class TagesschauNewsFetcher extends NewsFetcher {
     this.logger = new Logger();
   }
 
-  async fetchArticles(year: number, month: number): Promise<Article[]> {
+  async *fetchArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
+    yield { type: 'month_started', year, month };
+
     const is2024OrEarlier = year <= 2024;
 
     if (is2024OrEarlier) {
-      return this.fetchMonthlyArticles(year, month);
+      yield* this.fetchMonthlyArticles(year, month);
     } else {
-      return this.fetchDailyArticles(year, month);
+      yield* this.fetchDailyArticles(year, month);
     }
   }
 
-  private async fetchMonthlyArticles(year: number, month: number): Promise<Article[]> {
+  private async *fetchMonthlyArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
     const monthStr = month.toString().padStart(2, '0');
     const url = `https://www.tagesschau.de/archiv?datum=${year}-${monthStr}-01`;
 
     try {
-      const articles = await retryWithDelay(() => this.fetchArticlesFromArchivePage(url));
-      return articles;
+      yield* this.fetchArticlesFromArchivePage(url);
     } catch (error) {
       this.logger.logError(`Failed to fetch articles for ${year}-${monthStr}`, {
         url,
         error: error instanceof Error ? error.message : String(error)
       });
-      return [];
     }
   }
 
-  private async fetchDailyArticles(year: number, month: number): Promise<Article[]> {
+  private async *fetchDailyArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
     const days = generateDaysForMonth(year, month);
-    const allArticles: Article[] = [];
 
     for (const day of days) {
       const dateStr = formatDateForUrl(day);
       const url = `https://www.tagesschau.de/archiv?datum=${dateStr}`;
 
+      yield { type: 'day_started', date: dateStr };
+
       try {
-        const articles = await retryWithDelay(() => this.fetchArticlesFromArchivePage(url));
-        allArticles.push(...articles);
+        yield* this.fetchArticlesFromArchivePage(url);
       } catch (error) {
         this.logger.logError(`Failed to fetch articles for ${dateStr}`, {
           url,
@@ -59,38 +60,52 @@ export class TagesschauNewsFetcher extends NewsFetcher {
         });
       }
     }
-
-    return allArticles;
   }
 
-  private async fetchArticlesFromArchivePage(archiveUrl: string): Promise<Article[]> {
-    const response = await axios.get(archiveUrl);
+  private async *fetchArticlesFromArchivePage(archiveUrl: string): AsyncGenerator<FetchEvent> {
+    const response = await retryWithDelay(() => axios.get(archiveUrl));
     const html = response.data;
     const $ = cheerio.load(html);
 
     const elements = $('div.copytext-element-wrapper__vertical-only').toArray();
-    const articles: Article[] = [];
+    const articleLinks: string[] = [];
 
+    // Collect all article links
     for (const element of elements) {
       const firstLink = $(element).find('a').first();
       const href = firstLink.attr('href');
-
       if (href) {
-        try {
-          const article = await retryWithDelay(() => this.fetchArticleDetails(`https://tagesschau.de${href}`));
-          if (article) {
-            articles.push(article);
-          }
-        } catch (error) {
-          this.logger.logError(`Failed to fetch article details`, {
-            href,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
+        // Check if href is already a full URL
+        const fullUrl = href.startsWith('http') ? href : `https://tagesschau.de${href}`;
+        articleLinks.push(fullUrl);
       }
     }
 
-    return articles;
+    // Yield archive page loaded event
+    yield { type: 'archive_page_loaded', articleCount: articleLinks.length };
+
+    // Fetch each article
+    for (let i = 0; i < articleLinks.length; i++) {
+      const url = articleLinks[i];
+      const current = i + 1;
+      const total = articleLinks.length;
+
+      yield { type: 'article_fetching', current, total, url };
+
+      try {
+        const article = await retryWithDelay(() => this.fetchArticleDetails(url));
+        if (article) {
+          yield { type: 'article_fetched', article };
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.logger.logError(`Failed to fetch article details`, {
+          url,
+          error: errorMsg
+        });
+        yield { type: 'article_failed', url, error: errorMsg };
+      }
+    }
   }
 
   private async fetchArticleDetails(articleUrl: string): Promise<Article | null> {

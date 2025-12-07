@@ -4,15 +4,48 @@ import chalk from 'chalk';
 export class ProgressIndicator {
   private spinner: Ora | null = null;
 
-  startFetching(year: number, month: number, current: number, total: number): void {
+  monthStarted(year: number, month: number): void {
     const monthStr = month.toString().padStart(2, '0');
-    const message = `Fetching ${year}-${monthStr}... (${current}/${total} months)`;
+    const message = `Processing ${year}-${monthStr}...`;
 
     if (this.spinner) {
       this.spinner.text = message;
     } else {
       this.spinner = ora(message).start();
     }
+  }
+
+  dayStarted(date: string): void {
+    if (this.spinner) {
+      this.spinner.text = `Fetching archive for ${date}...`;
+    }
+  }
+
+  archivePageLoaded(count: number): void {
+    if (this.spinner) {
+      this.spinner.text = `Found ${count} article${count !== 1 ? 's' : ''} to fetch...`;
+    }
+  }
+
+  articleFetching(current: number, total: number, url?: string): void {
+    if (this.spinner) {
+      const percentage = Math.round((current / total) * 100);
+      this.spinner.text = `Fetching articles... ${current}/${total} (${percentage}%)`;
+    }
+  }
+
+  articleFetched(title: string, filtered: boolean): void {
+    // Optionally log individual article fetches
+    // For now, we'll rely on the articleFetching progress
+    if (filtered && this.spinner) {
+      // Could log filtered articles if needed
+      // this.spinner.text += ` (filtered: ${title})`;
+    }
+  }
+
+  articleFailed(url: string): void {
+    // Errors are logged to file, we don't need to spam the console
+    // Just continue showing progress
   }
 
   success(message: string): void {

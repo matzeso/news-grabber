@@ -1,5 +1,5 @@
-import { Article } from '../types/Article';
+import { FetchEvent } from '../types/FetchEvent';
 
 export abstract class NewsFetcher {
-  abstract fetchArticles(year: number, month: number): Promise<Article[]>;
+  abstract fetchArticles(year: number, month: number): AsyncGenerator<FetchEvent>;
 }

@@ -5,14 +5,19 @@ import { JsonFormatter } from './formatters/JsonFormatter';
 import { TxtFormatter } from './formatters/TxtFormatter';
 import { OutputFormatter } from './formatters/OutputFormatter';
 import { ProgressIndicator } from './cli/progress';
+import { Statistics } from './utils/statistics';
+import { parseFilterString, matchesFilter } from './utils/filterUtils';
 import chalk from 'chalk';
 
 export async function run(options: CliOptions): Promise<void> {
   const progress = new ProgressIndicator();
+  const stats = new Statistics();
 
   try {
-    // Parse time input
+    // Parse time input and filters
     const yearMonths = parseTimeInput(options.time);
+    const filters = parseFilterString(options.filters || '');
+    const hasFilters = filters.length > 0;
 
     // Initialize fetcher based on source
     const fetcher = getFetcher(options.source);
@@ -20,26 +25,54 @@ export async function run(options: CliOptions): Promise<void> {
     // Initialize formatter based on format
     const formatter = getFormatter(options.format);
 
+    // Display startup info
     progress.info(`Starting to fetch ${yearMonths.length} month(s) from ${options.source}`);
     progress.info(`Output format: ${options.format}`);
-
-    let totalArticles = 0;
+    if (hasFilters) {
+      progress.info(`Filters: ${filters.join(', ')}`);
+    }
 
     // Process each month
-    for (let i = 0; i < yearMonths.length; i++) {
-      const { year, month } = yearMonths[i];
-
-      progress.startFetching(year, month, i + 1, yearMonths.length);
-
+    for (const { year, month } of yearMonths) {
       try {
-        const articles = await fetcher.fetchArticles(year, month);
+        // Consume the generator and process events
+        for await (const event of fetcher.fetchArticles(year, month)) {
+          switch (event.type) {
+            case 'month_started':
+              progress.monthStarted(event.year, event.month);
+              break;
 
-        if (articles.length > 0) {
-          await formatter.write(articles);
-          totalArticles += articles.length;
-          progress.success(`Fetched ${articles.length} articles for ${year}-${month.toString().padStart(2, '0')}`);
-        } else {
-          progress.info(`No articles found for ${year}-${month.toString().padStart(2, '0')}`);
+            case 'day_started':
+              progress.dayStarted(event.date);
+              break;
+
+            case 'archive_page_loaded':
+              stats.incrementFound(event.articleCount);
+              progress.archivePageLoaded(event.articleCount);
+              break;
+
+            case 'article_fetching':
+              progress.articleFetching(event.current, event.total, event.url);
+              break;
+
+            case 'article_fetched':
+              stats.incrementFetched();
+
+              // Apply filters
+              if (matchesFilter(event.article, filters)) {
+                stats.incrementFiltered();
+                await formatter.writeArticle(event.article);
+                progress.articleFetched(event.article.title, false);
+              } else {
+                progress.articleFetched(event.article.title, true);
+              }
+              break;
+
+            case 'article_failed':
+              stats.incrementFailed();
+              progress.articleFailed(event.url);
+              break;
+          }
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -47,9 +80,15 @@ export async function run(options: CliOptions): Promise<void> {
       }
     }
 
+    // Stop spinner and show summary
     progress.stop();
-    console.log(chalk.green.bold(`\n✓ Complete! Fetched ${totalArticles} articles in total.`));
-    console.log(chalk.gray(`Output saved to: output/`));
+    console.log(chalk.green.bold('\n✓ Complete!'));
+    console.log(stats.getSummary(hasFilters));
+    console.log(chalk.gray('\nOutput saved to: output/'));
+
+    if (stats.totalFailed > 0) {
+      console.log(chalk.yellow(`\nSome articles failed to fetch. Check output/errors.log for details.`));
+    }
 
   } catch (error) {
     progress.stop();

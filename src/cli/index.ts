@@ -11,7 +11,8 @@ export async function getCli(): Promise<CliOptions> {
     .version('1.0.0')
     .option('-s, --source <source>', 'news source (e.g., Tagesschau)')
     .option('-t, --time <time>', 'time period (YYYY or YYYY-MM)')
-    .option('-f, --format <format>', 'output format (json or txt)');
+    .option('-f, --format <format>', 'output format (json or txt)')
+    .option('--filters <filters>', 'filter keywords (comma-separated, use * for wildcards)');
 
   program.parse();
 
@@ -30,6 +31,7 @@ export async function getCli(): Promise<CliOptions> {
   return {
     source: options.source,
     time: options.time,
-    format: options.format
+    format: options.format,
+    filters: options.filters
   };
 }

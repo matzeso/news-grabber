@@ -28,14 +28,30 @@ export async function promptUserForOptions(): Promise<CliOptions> {
       type: 'list',
       name: 'format',
       message: 'Select output format:',
-      choices: ['json', 'txt'],
+      choices: [
+        {
+          name: 'JSON - Save complete article data as JSON files',
+          value: 'json'
+        },
+        {
+          name: 'TXT - Save article title and text as plain text files',
+          value: 'txt'
+        }
+      ],
       default: 'json'
+    },
+    {
+      type: 'input',
+      name: 'filters',
+      message: 'Filter articles by keywords (comma-separated, use * for wildcards, leave empty for all):',
+      default: ''
     }
   ]);
 
   return {
     source: answers.source,
     time: answers.time,
-    format: answers.format as OutputFormat
+    format: answers.format as OutputFormat,
+    filters: answers.filters || undefined
   };
 }
