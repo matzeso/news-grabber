@@ -5,12 +5,15 @@ on:
     tags:
       - "v*"
 
+# 1. ADD GLOBAL PERMISSIONS
+# This ensures the GITHUB_TOKEN has permission to upload files and create releases.
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required to create the release and upload assets
 
     steps:
       - name: Checkout code
@@ -24,11 +27,13 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      # Create the output directory to keep things organized
       - name: Create Build Directory
         run: mkdir -p build
 
-      # --- Build Steps (Cross-Compilation) ---
+      # --- Build Steps ---
+
+      - name: Build macOS x64 (Intel)
+        run: bun build ./src/index.ts --compile --target=bun-darwin-x64 --outfile=build/news-grabber-macos-x64
 
       - name: Build macOS arm64 (Apple Silicon)
         run: bun build ./src/index.ts --compile --target=bun-darwin-arm64 --outfile=build/news-grabber-macos-arm64
@@ -42,14 +47,15 @@ jobs:
       # --- Release Step ---
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        # 2. UPGRADE TO V2 HERE
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
+            build/news-grabber-macos-x64
             build/news-grabber-macos-arm64
             build/news-grabber-linux-x64
             build/news-grabber-win-x64.exe
           draft: false
           prerelease: false
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
