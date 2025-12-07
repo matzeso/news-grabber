@@ -31,11 +31,21 @@ export function matchesFilter(article: Article, filters: string[]): boolean {
 }
 
 function wildcardToRegex(pattern: string): RegExp {
-  // Escape special regex characters except *
+  // 1. Escape special regex characters (like +, ?, ^, $) to treat them as text
+  // We exclude * from this list because we want to handle it manually later
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 
-  // Convert * to .*
-  const regexPattern = escaped.replace(/\*/g, '.*');
+  // 2. Convert wildcard * to Regex .*
+  const regexBody = escaped.replace(/\*/g, '.*');
 
-  return new RegExp(regexPattern);
+  // 3. Determine if we need word boundaries (\b)
+  // If pattern starts with *, we match part of a word -> No starting boundary
+  // If pattern does NOT start with *, we match start of a word -> Add \b
+  const startBoundary = pattern.startsWith('*') ? '' : '\\b';
+
+  // Same logic for the end
+  const endBoundary = pattern.endsWith('*') ? '' : '\\b';
+
+  // Construct the final RegExp
+  return new RegExp(`${startBoundary}${regexBody}${endBoundary}`);
 }
