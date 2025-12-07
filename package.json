@@ -1,15 +1,36 @@
 {
   "name": "news-grabber",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "CLI tool for scraping news articles from Tagesschau with filtering and export capabilities",
+  "main": "dist/index.js",
+  "bin": {
+    "news-grabber": "dist/index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "build:exe": "npm run build && pkg . --compress GZip",
+    "clean": "rm -rf dist build"
   },
-  "keywords": [],
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": [
+      "node20-macos-x64",
+      "node20-macos-arm64",
+      "node20-linux-x64",
+      "node20-win-x64"
+    ],
+    "outputPath": "build"
+  },
+  "keywords": [
+    "news",
+    "scraper",
+    "tagesschau",
+    "cli"
+  ],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
   "dependencies": {
     "axios": "^1.0.0",
     "chalk": "^5.6.2",
@@ -21,6 +42,7 @@
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
     "@types/node": "^20.0.0",
+    "@yao-pkg/pkg": "^6.10.1",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }

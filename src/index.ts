@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { getCli } from './cli';
 import { run } from './app';
 
