@@ -9,19 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx src/index.ts",
-    "build": "tsc",
-    "build:exe": "npm run build && pkg . --compress GZip",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js",
     "clean": "rm -rf dist build"
-  },
-  "pkg": {
-    "scripts": "dist/**/*.js",
-    "targets": [
-      "node20-macos-x64",
-      "node20-macos-arm64",
-      "node20-linux-x64",
-      "node20-win-x64"
-    ],
-    "outputPath": "build"
   },
   "keywords": [
     "news",
@@ -32,17 +21,18 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+  },
+  "devDependencies": {
     "axios": "^1.0.0",
     "chalk": "^5.6.2",
     "cheerio": "^1.0.0-rc.12",
     "commander": "^14.0.2",
     "inquirer": "^13.0.2",
-    "ora": "^9.0.0"
-  },
-  "devDependencies": {
+    "ora": "^9.0.0",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^20.0.0",
     "@yao-pkg/pkg": "^6.10.1",
+    "esbuild": "^0.27.1",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }
