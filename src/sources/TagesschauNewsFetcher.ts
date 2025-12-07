@@ -10,10 +10,12 @@ import { Logger } from '../utils/logger';
 
 export class TagesschauNewsFetcher extends NewsFetcher {
   private logger: Logger;
+  private concurrency: number;
 
-  constructor() {
+  constructor(concurrency: number = 10) {
     super();
     this.logger = new Logger();
+    this.concurrency = concurrency;
   }
 
   async *fetchArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
@@ -84,27 +86,79 @@ export class TagesschauNewsFetcher extends NewsFetcher {
     // Yield archive page loaded event
     yield { type: 'archive_page_loaded', articleCount: articleLinks.length };
 
-    // Fetch each article
-    for (let i = 0; i < articleLinks.length; i++) {
-      const url = articleLinks[i];
-      const current = i + 1;
-      const total = articleLinks.length;
+    // Fetch articles with concurrency
+    yield* this.fetchArticlesWithConcurrency(articleLinks);
+  }
 
-      yield { type: 'article_fetching', current, total, url };
+  private async *fetchArticlesWithConcurrency(urls: string[]): AsyncGenerator<FetchEvent> {
+    if (urls.length === 0) return;
 
-      try {
-        const article = await retryWithDelay(() => this.fetchArticleDetails(url));
-        if (article) {
-          yield { type: 'article_fetched', article };
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        this.logger.logError(`Failed to fetch article details`, {
-          url,
-          error: errorMsg
-        });
-        yield { type: 'article_failed', url, error: errorMsg };
+    const total = urls.length;
+    let nextIndex = 0;
+    let completedCount = 0;
+    const events: FetchEvent[] = [];
+    let resolveNextEvent: (() => void) | null = null;
+
+    // Helper to enqueue an event
+    const enqueueEvent = (event: FetchEvent) => {
+      events.push(event);
+      if (resolveNextEvent) {
+        resolveNextEvent();
+        resolveNextEvent = null;
       }
+    };
+
+    // Worker function
+    const worker = async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= urls.length) break;
+
+        const url = urls[index];
+        const current = index + 1;
+
+        // Yield fetching event
+        enqueueEvent({ type: 'article_fetching', current, total, url });
+
+        try {
+          const article = await retryWithDelay(() => this.fetchArticleDetails(url));
+          if (article) {
+            enqueueEvent({ type: 'article_fetched', article });
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          this.logger.logError(`Failed to fetch article details`, {
+            url,
+            error: errorMsg
+          });
+          enqueueEvent({ type: 'article_failed', url, error: errorMsg });
+        }
+
+        completedCount++;
+      }
+    };
+
+    // Start workers
+    const workers = Array.from({ length: Math.min(this.concurrency, urls.length) }, () => worker());
+
+    // Yield events as they come in
+    while (completedCount < total || events.length > 0) {
+      if (events.length > 0) {
+        yield events.shift()!;
+      } else {
+        // Wait for next event
+        await new Promise<void>(resolve => {
+          resolveNextEvent = resolve;
+        });
+      }
+    }
+
+    // Wait for all workers to complete
+    await Promise.all(workers);
+
+    // Yield any remaining events
+    while (events.length > 0) {
+      yield events.shift()!;
     }
   }
 
@@ -120,6 +174,7 @@ export class TagesschauNewsFetcher extends NewsFetcher {
       try {
         const jsonContent = JSON.parse($(scriptElement).html() || '');
 
+        // Only process NewsArticle types
         if (jsonContent['@type'] === 'NewsArticle') {
           const schema = jsonContent as TagesschauArticleSchema;
 
