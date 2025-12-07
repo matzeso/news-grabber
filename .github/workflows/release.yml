@@ -1,0 +1,47 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build executables
+        run: npm run build:exe
+
+      - name: Rename executables
+        run: |
+          mv build/news-grabber-macos-x64 build/news-grabber-macos-x64
+          mv build/news-grabber-macos-arm64 build/news-grabber-macos-arm64
+          mv build/news-grabber-linux-x64 build/news-grabber-linux-x64
+          mv build/news-grabber-win-x64.exe build/news-grabber-win-x64.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/news-grabber-macos-x64
+            build/news-grabber-macos-arm64
+            build/news-grabber-linux-x64
+            build/news-grabber-win-x64.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
