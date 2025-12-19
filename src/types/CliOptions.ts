@@ -5,4 +5,5 @@ export interface CliOptions {
   time: string;
   format: OutputFormat;
   filters?: string;
+  filterIncludeText?: boolean;
 }

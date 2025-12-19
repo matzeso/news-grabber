@@ -48,10 +48,35 @@ export async function promptUserForOptions(): Promise<CliOptions> {
     }
   ]);
 
+  // If filters are provided, ask about filter scope
+  let filterIncludeText = false;
+  if (answers.filters && answers.filters.trim() !== '') {
+    const filterScopeAnswer = await inquirer.prompt([
+      {
+        type: 'select',
+        name: 'filterIncludeText',
+        message: 'What should be filtered?',
+        choices: [
+          {
+            name: 'Title only',
+            value: false
+          },
+          {
+            name: 'Title + Text',
+            value: true
+          }
+        ],
+        default: false
+      }
+    ]);
+    filterIncludeText = filterScopeAnswer.filterIncludeText;
+  }
+
   return {
     source: answers.source,
     time: answers.time,
     format: answers.format as OutputFormat,
-    filters: answers.filters || undefined
+    filters: answers.filters || undefined,
+    filterIncludeText
   };
 }

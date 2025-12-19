@@ -12,7 +12,8 @@ export async function getCli(): Promise<CliOptions> {
     .option('-s, --source <source>', 'news source (e.g., Tagesschau)')
     .option('-t, --time <time>', 'time period (YYYY or YYYY-MM)')
     .option('-f, --format <format>', 'output format (json or txt)')
-    .option('--filters <filters>', 'filter keywords (comma-separated, use * for wildcards)');
+    .option('--filters <filters>', 'filter keywords (comma-separated, use * for wildcards)')
+    .option('--filter-text', 'include article text in filter search (default: title only)');
 
   program.parse();
 
@@ -32,6 +33,7 @@ export async function getCli(): Promise<CliOptions> {
     source: options.source,
     time: options.time,
     format: options.format,
-    filters: options.filters
+    filters: options.filters,
+    filterIncludeText: options.filterText
   };
 }

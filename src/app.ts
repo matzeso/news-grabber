@@ -29,7 +29,8 @@ export async function run(options: CliOptions): Promise<void> {
     progress.info(`Starting to fetch ${yearMonths.length} month(s) from ${options.source}`);
     progress.info(`Output format: ${options.format}`);
     if (hasFilters) {
-      progress.info(`Filters: ${filters.join(', ')}`);
+      const filterScope = options.filterIncludeText ? 'title + text' : 'title only';
+      progress.info(`Filters: ${filters.join(', ')} (${filterScope})`);
     }
 
     // Process each month
@@ -59,7 +60,7 @@ export async function run(options: CliOptions): Promise<void> {
               stats.incrementFetched();
 
               // Apply filters
-              if (matchesFilter(event.article, filters)) {
+              if (matchesFilter(event.article, filters, options.filterIncludeText)) {
                 stats.incrementFiltered();
                 await formatter.writeArticle(event.article);
                 progress.articleFetched(event.article.title, false);

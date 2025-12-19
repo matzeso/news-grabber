@@ -11,13 +11,13 @@ export function parseFilterString(input: string): string[] {
     .filter(filter => filter.length > 0);
 }
 
-export function matchesFilter(article: Article, filters: string[]): boolean {
+export function matchesFilter(article: Article, filters: string[], includeText = false): boolean {
   // If no filters, include all articles
   if (filters.length === 0) {
     return true;
   }
 
-  const searchText = `${article.title} ${article.articleText}`.toLowerCase();
+  const searchText = `${article.title} ${includeText ? article.articleText :''}`.trim().toLowerCase();
 
   // Check if any filter matches
   for (const filter of filters) {
