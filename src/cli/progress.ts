@@ -3,6 +3,8 @@ import chalk from 'chalk';
 
 export class ProgressIndicator {
   private spinner: Ora | null = null;
+  private currentPage: number | undefined;
+  private currentTotalPages: number | undefined;
 
   monthStarted(year: number, month: number): void {
     const monthStr = month.toString().padStart(2, '0');
@@ -21,7 +23,9 @@ export class ProgressIndicator {
     }
   }
 
-  archivePageLoaded(count: number): void {
+  archivePageLoaded(count: number, page?: number, totalPages?: number): void {
+    this.currentPage = page;
+    this.currentTotalPages = totalPages;
     if (this.spinner) {
       this.spinner.text = `Found ${count} article${count !== 1 ? 's' : ''} to fetch...`;
     }
@@ -30,7 +34,8 @@ export class ProgressIndicator {
   articleFetching(current: number, total: number, url?: string): void {
     if (this.spinner) {
       const percentage = Math.round((current / total) * 100);
-      this.spinner.text = `Fetching articles... ${current}/${total} (${percentage}%)`;
+      const pageInfo = this.currentPage && this.currentTotalPages ? ` [page ${this.currentPage}/${this.currentTotalPages}]` : '';
+      this.spinner.text = `Fetching articles${pageInfo}... ${current}/${total} (${percentage}%)`;
     }
   }
 

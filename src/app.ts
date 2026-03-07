@@ -49,7 +49,7 @@ export async function run(options: CliOptions): Promise<void> {
 
             case 'archive_page_loaded':
               stats.incrementFound(event.articleCount);
-              progress.archivePageLoaded(event.articleCount);
+              progress.archivePageLoaded(event.articleCount, event.page, event.totalPages);
               break;
 
             case 'article_fetching':

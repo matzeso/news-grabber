@@ -23,27 +23,70 @@ export class TagesschauNewsFetcher extends NewsFetcher {
   async *fetchArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
     yield { type: 'month_started', year, month };
 
-    const is2024OrEarlier = year <= 2024;
-
-    if (is2024OrEarlier) {
+    if (this.isMonthlyArchive(year, month)) {
       yield* this.fetchMonthlyArticles(year, month);
     } else {
       yield* this.fetchDailyArticles(year, month);
     }
   }
 
+  private isMonthlyArchive(year: number, month: number): boolean {
+    const now = new Date();
+    const cutoffYear = now.getFullYear() - 1;
+    const cutoffMonth = now.getMonth() + 1; // 1-based
+
+    // Months up to and including the same month one year ago use monthly archive
+    return year < cutoffYear || (year === cutoffYear && month <= cutoffMonth);
+  }
+
   private async *fetchMonthlyArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
     const monthStr = month.toString().padStart(2, '0');
-    const url = `https://www.tagesschau.de/archiv?datum=${year}-${monthStr}-01`;
+    const baseUrl = `https://www.tagesschau.de/archiv?datum=${year}-${monthStr}-01`;
 
     try {
-      yield* this.fetchArticlesFromArchivePage(url);
+      // Fetch first page to determine total number of pages
+      const firstPageResponse = await retryWithDelay(() => axios.get(baseUrl));
+      const $ = cheerio.load(firstPageResponse.data);
+      const lastPage = this.getLastPageNumber($);
+
+      // Fetch articles from all pages
+      for (let page = 1; page <= lastPage; page++) {
+        const pageUrl = page === 1 ? baseUrl : `${baseUrl}&pageIndex=${page}`;
+
+        // Reuse the already-loaded first page, fetch others
+        if (page === 1) {
+          yield* this.fetchArticlesFromArchivePageWithCheerio(pageUrl, $, page, lastPage);
+        } else {
+          yield* this.fetchArticlesFromArchivePage(pageUrl, page, lastPage);
+        }
+      }
     } catch (error) {
       this.logger.logError(`Failed to fetch articles for ${year}-${monthStr}`, {
-        url,
+        url: baseUrl,
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
+
+  private getLastPageNumber($: cheerio.CheerioAPI): number {
+    const paginationLinks = $('.paginierung__liste a.paginierung__liste--link');
+
+    let maxPage = 1;
+
+    paginationLinks.each((_, element) => {
+      const href = $(element).attr('href');
+      if (href) {
+        const match = href.match(/pageIndex=(\d+)/);
+        if (match) {
+          const pageNum = parseInt(match[1], 10);
+          if (pageNum > maxPage) {
+            maxPage = pageNum;
+          }
+        }
+      }
+    });
+
+    return maxPage;
   }
 
   private async *fetchDailyArticles(year: number, month: number): AsyncGenerator<FetchEvent> {
@@ -66,11 +109,14 @@ export class TagesschauNewsFetcher extends NewsFetcher {
     }
   }
 
-  private async *fetchArticlesFromArchivePage(archiveUrl: string): AsyncGenerator<FetchEvent> {
+  private async *fetchArticlesFromArchivePage(archiveUrl: string, page?: number, totalPages?: number): AsyncGenerator<FetchEvent> {
     const response = await retryWithDelay(() => axios.get(archiveUrl));
-    const html = response.data;
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(response.data);
 
+    yield* this.fetchArticlesFromArchivePageWithCheerio(archiveUrl, $, page, totalPages);
+  }
+
+  private async *fetchArticlesFromArchivePageWithCheerio(archiveUrl: string, $: cheerio.CheerioAPI, page?: number, totalPages?: number): AsyncGenerator<FetchEvent> {
     const elements = $('div.copytext-element-wrapper__vertical-only').toArray();
     const articleLinks: string[] = [];
 
@@ -96,7 +142,7 @@ export class TagesschauNewsFetcher extends NewsFetcher {
     }
 
     // Yield archive page loaded event
-    yield { type: 'archive_page_loaded', articleCount: articleLinks.length };
+    yield { type: 'archive_page_loaded', articleCount: articleLinks.length, page, totalPages };
 
     // Fetch articles with concurrency
     yield* this.fetchArticlesWithConcurrency(articleLinks);
