@@ -1,10 +1,10 @@
 # News Grabber
 
-A CLI tool for downloading and filtering news articles from Tagesschau. Export articles as JSON or plain text, with support for keyword filtering and wildcards.
+Ein CLI-Tool zum Herunterladen und Filtern von Nachrichtenartikeln der Tagesschau. Artikel können als JSON oder Textdatei exportiert werden, mit Unterstützung für Stichwortfilter und Platzhalter (Wildcards).
 
-## Prerequisites
+## Voraussetzungen
 
-- [Node.js](https://nodejs.org/) (v18 or later)
+- [Node.js](https://nodejs.org/) (v18 oder neuer)
 
 ## Installation
 
@@ -14,68 +14,68 @@ cd news-grabber
 npm install
 ```
 
-## Usage
+## Nutzung
 
-### Interactive mode
+### Interaktiver Modus
 
-Run without arguments to be guided through the options:
+Ohne Argumente starten, um durch die Optionen geführt zu werden:
 
 ```bash
 npm run start
 ```
 
-### Command-line mode
+### Kommandozeilenmodus
 
 ```bash
-npm run start -- -s Tagesschau -t <time> -f <format> [--filters <keywords>] [--filter-text]
+npm run start -- -s Tagesschau -t <Zeitraum> -f <Format> [--filters <Stichwörter>] [--filter-text]
 ```
 
-**Options:**
+**Optionen:**
 
-| Flag | Description |
-|------|-------------|
-| `-s, --source <source>` | News source (currently: `Tagesschau`) |
-| `-t, --time <time>` | Time period — a year (`2024`) or a specific month (`2024-12`) |
-| `-f, --format <format>` | Output format: `json` or `txt` |
-| `--filters <keywords>` | Comma-separated keywords with optional wildcards |
-| `--filter-text` | Also search in article text, not just the title |
+| Flag | Beschreibung |
+|------|--------------|
+| `-s, --source <Quelle>` | Nachrichtenquelle (derzeit: `Tagesschau`) |
+| `-t, --time <Zeitraum>` | Zeitraum — ein Jahr (`2024`) oder ein bestimmter Monat (`2024-12`) |
+| `-f, --format <Format>` | Ausgabeformat: `json` oder `txt` |
+| `--filters <Stichwörter>` | Kommagetrennte Stichwörter mit optionalen Platzhaltern |
+| `--filter-text` | Auch im Artikeltext suchen, nicht nur im Titel |
 
-### Examples
+### Beispiele
 
 ```bash
-# Download all articles from December 2024 as JSON
+# Alle Artikel vom Dezember 2024 als JSON herunterladen
 npm run start -- -s Tagesschau -t 2024-12 -f json
 
-# Download all 2025 articles mentioning "Trump" as text files
+# Alle Artikel aus 2025 mit "Trump" als Textdateien herunterladen
 npm run start -- -s Tagesschau -t 2025 -f txt --filters "Trump*"
 
-# Download articles about climate, searching in title and text
+# Artikel zum Thema Klima herunterladen, Suche in Titel und Text
 npm run start -- -s Tagesschau -t 2024-06 -f json --filters "*climate*,*Klima*" --filter-text
 
-# Download migration-related articles
+# Artikel zum Thema Migration herunterladen
 npm run start -- -s Tagesschau -t 2024-11 -f txt --filters "migra*,asyl*,flücht*"
 ```
 
-### Filter syntax
+### Filtersyntax
 
-- `Trump` — exact match in title
-- `Trump*` — prefix match ("Trump", "Trumps", ...)
-- `*climate*` — contains match
-- `climate,economy` — matches any of the listed keywords
+- `Trump` — exakte Übereinstimmung im Titel
+- `Trump*` — Präfix-Suche ("Trump", "Trumps", ...)
+- `*climate*` — Enthält-Suche
+- `climate,economy` — trifft auf eines der aufgelisteten Stichwörter zu
 
-## Output
+## Ausgabe
 
-Articles are saved to `output/YYYY/MM/`:
+Artikel werden unter `output/YYYY/MM/` gespeichert:
 
 ```
 output/2024/12/20241225-example-article-title.json
 output/2024/12/20241225-example-article-title.txt
 ```
 
-**JSON** contains title, publish date, full article text, and metadata (images, authors, keywords, etc.).
+**JSON** enthält Titel, Veröffentlichungsdatum, den vollständigen Artikeltext und Metadaten (Bilder, Autoren, Schlagwörter usw.).
 
-**TXT** contains the title followed by the article text.
+**TXT** enthält Veröffentlichungsdatum, URL und Titel gefolgt vom Artikeltext.
 
-## License
+## Lizenz
 
 MIT
